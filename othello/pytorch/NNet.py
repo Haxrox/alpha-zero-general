@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import logging
 
 import numpy as np
 from tqdm import tqdm
@@ -13,6 +14,8 @@ import torch
 import torch.optim as optim
 
 from .OthelloNNet import OthelloNNet as onnet
+
+log = logging.getLogger("__main__")
 
 args = dotdict({
     'lr': 0.001,
@@ -30,7 +33,9 @@ class NNetWrapper(NeuralNet):
         self.board_x, self.board_y = game.getBoardSize()
         self.action_size = game.getActionSize()
 
-        if args.cuda:
+        log.info('Cuda passed: %s', args.cuda)
+    
+        if args.cuda:        
             self.nnet.cuda()
 
     def train(self, examples):
