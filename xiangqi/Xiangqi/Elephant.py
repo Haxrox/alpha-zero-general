@@ -1,0 +1,26 @@
+from .XiangqiPiece import XiangqiPiece, Colour
+from ..Boardgame import Coord, Board
+
+class Elephant(XiangqiPiece):
+  def __init__(self, colour : Colour = Colour.NONE):
+    super().__init__("Elephant", colour)
+    self._legal_vectors = [
+      Coord(2, 2), Coord(2, -2), Coord(-2, 2), Coord(-2, -2)
+    ]
+
+    match self.colour:
+      case Colour.RED:
+        self._bounds.append(
+          lambda coord: Coord(0, 0) <= coord <= Coord(9, 4)
+        )
+      case Colour.BLACK:
+        self._bounds.append(
+          lambda coord: Coord(0, 5) <= coord <= Coord(9, 10)
+        )
+
+  def is_valid_board_dest(self, board : Board, dest : Coord):
+    # Make sure no pieces are blocking the elephant
+    delta = dest - self.coord
+    blocking_coord = self.coord + Coord(delta.x // 2, delta.y // 2)
+
+    return not board.has_piece(blocking_coord)

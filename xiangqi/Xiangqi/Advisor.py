@@ -1,9 +1,19 @@
-from .XiangqiPiece import XiangqiPiece
-from Boardgame import Coord
+from .XiangqiPiece import XiangqiPiece, Colour
+from ..Boardgame import Coord
 
 class Advisor(XiangqiPiece):
-  def __init__(self, colour):
+  def __init__(self, colour : Colour = Colour.NONE):
     super().__init__("Advisor", colour)
-    self._legal_moves = [
-      Coord(2, 2), Coord(2, -2), Coord(-2, 2), Coord(-2, -2)
+    self._legal_vectors = [
+      Coord(1, 1), Coord(1, -1), Coord(-1, 1), Coord(-1, -1)
     ]
+
+    match self.colour:
+      case Colour.RED:
+        self._bounds.append(
+          lambda coord: Coord(3, 0) <= coord <= Coord(5, 2)
+        )
+      case Colour.BLACK:
+        self._bounds.append(
+          lambda coord: Coord(3, 7) <= coord <= Coord(5, 9)
+        )

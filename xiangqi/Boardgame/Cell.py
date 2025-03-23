@@ -15,6 +15,10 @@ class Cell():
     return self._pos.y
 
   @property
+  def pos(self):
+    return self._pos
+
+  @property
   def piece(self):
     return self._piece
 
