@@ -8,12 +8,11 @@ class King(XiangqiPiece):
       Coord(0, 1), Coord(0, -1), Coord(1, 0), Coord(-1, 0)
     ]
 
-    match self.colour:
-      case Colour.RED:
-        self._bounds.append(
-          lambda coord: Coord(3, 0) <= coord <= Coord(5, 2)
-        )
-      case Colour.BLACK:
-        self._bounds.append(
-          lambda coord: Coord(3, 7) <= coord <= Coord(5, 9)
-        )
+    def bound(coord):
+      match self.colour:
+        case Colour.RED:
+          return Coord(3, 0) <= coord <= Coord(5, 2)
+        case Colour.BLACK:
+          return Coord(3, 7) <= coord <= Coord(5, 9)
+
+    self._bounds.append(bound)

@@ -4,6 +4,6 @@ from .King import King
 from .Advisor import Advisor
 from .Elephant import Elephant
 from .Knight import Knight
-# from .Rook import Rook
-# from .Cannon import Cannon
-# from .Soldier import Soldier
+from .Rook import Rook
+from .Cannon import Cannon
+from .Soldier import Soldier

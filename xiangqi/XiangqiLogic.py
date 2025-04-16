@@ -1,19 +1,22 @@
 from .Boardgame import Board, Coord, Move
-from .Xiangqi import Colour, XiangqiPiece, King, Advisor, Elephant, Knight
+from .Xiangqi import Colour, XiangqiPiece, King, Advisor, Elephant, Knight, Rook, Cannon, Soldier
 
 from itertools import chain
 from functools import partial
+import logging
 
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 PLANE_MAPPING = {
-  # Pawn: 0,
-  # Rook: 1,
+  Soldier: 0,
+  Rook: 1,
   Knight: 2,
   Elephant: 3,
   Advisor: 4,
   King: 5,
-  # Cannon: 6
+  Cannon: 6
 }
 
 COLOUR_MAPPING = {
@@ -21,11 +24,72 @@ COLOUR_MAPPING = {
   Colour.BLACK: 7
 }
 
+DEFAULT_PIECE_COORDS = {
+  Rook: {
+    Colour.RED: [
+      (0, 0), (8, 0),
+    ],
+    Colour.BLACK: [
+      (0, 9), (8, 9)
+    ]
+  },
+  Knight: {
+    Colour.RED: [
+      (1, 0), (7, 0)
+    ],
+    Colour.BLACK: [
+      (1, 9), (7, 9)
+    ]
+  },
+  Elephant: {
+    Colour.RED: [
+      (2, 0), (6, 0)
+    ],
+    Colour.BLACK: [
+      (2, 9), (6, 9)
+    ]
+  },
+  Advisor: {
+    Colour.RED: [
+      (3, 0), (5, 0)
+    ],
+    Colour.BLACK: [
+      (3, 9), (5, 9)
+    ]
+  },
+  King: {
+    Colour.RED: [
+      (4, 0)
+    ],
+    Colour.BLACK: [
+      (4, 9)
+    ]
+  },
+  Cannon: {
+    Colour.RED: [
+      (1, 2), (7, 2)
+    ],
+    Colour.BLACK: [
+      (1, 7), (7, 7)
+    ]
+  },
+  Soldier: {
+    Colour.RED: [
+      (0, 3), (2, 3), (4, 3), (6, 3), (8, 3)
+    ],
+    Colour.BLACK: [
+      (0, 6), (2, 6), (4, 6), (6, 6), (8, 6)
+    ]
+  }
+}
+
 class XiangqiBoard(Board):
   def __init__(self, rows : int = 9, cols : int = 10):
     super().__init__(rows, cols)
 
     self.planes = 14
+    self._red_king = None
+    self._black_king = None
 
   @classmethod
   def from_encoding(cls, encoding : np.ndarray):
@@ -43,16 +107,16 @@ class XiangqiBoard(Board):
       try:
         piece_cls = next(filter(lambda piece : PLANE_MAPPING[piece] == plane_num, PLANE_MAPPING))
 
-        piece = piece_cls(colour)
-
-        if piece_cls == King:
-          if colour == Colour.RED:
-            instance._red_king = piece
-          else:
-            instance._black_king = piece
-
         # get coords of piece
         for x, y in zip(*plane.nonzero()):
+          piece = piece_cls(colour)
+
+          if piece_cls == King:
+            if colour == Colour.RED:
+              instance._red_king = piece
+            else:
+              instance._black_king = piece
+
           instance.add_piece(Coord(int(x), int(y)), piece)
       except StopIteration:
         print(f"Could not find piece for plane {plane_num}")
@@ -70,44 +134,41 @@ class XiangqiBoard(Board):
 
     return encoded_board.astype(bool)
 
-  def setup(self):
-    self._red_king = King(Colour.RED)
-    self._black_king = King(Colour.BLACK)
+  def setup(self, piece_coords : dict = DEFAULT_PIECE_COORDS):
+    for piece_cls, coords in piece_coords.items():
+      for colour, coords in coords.items():
+        for coord in coords:
+          piece = piece_cls(colour)
+          self.add_piece(Coord(*coord), piece)
+          if piece_cls == King:
+            if colour == Colour.RED:
+              self._red_king = piece
+            else:
+              self._black_king = piece
 
-    self.add_piece(Coord(4, 0), self._red_king)
-    self.add_piece(Coord(4, 9), self._black_king)
-
-    self.add_piece(Coord(3, 0), Advisor(Colour.RED))
-    self.add_piece(Coord(5, 0), Advisor(Colour.RED))
-
-    self.add_piece(Coord(3, 9), Advisor(Colour.BLACK))
-    self.add_piece(Coord(5, 9), Advisor(Colour.BLACK))
-
-    self.add_piece(Coord(2, 0), Elephant(Colour.RED))
-    self.add_piece(Coord(6, 0), Elephant(Colour.RED))
-
-    self.add_piece(Coord(2, 9), Elephant(Colour.BLACK))
-    self.add_piece(Coord(6, 9), Elephant(Colour.BLACK))
-
-    self.add_piece(Coord(1, 0), Knight(Colour.RED))
-    self.add_piece(Coord(7, 0), Knight(Colour.RED))
-
-    self.add_piece(Coord(1, 9), Knight(Colour.BLACK))
-    self.add_piece(Coord(7, 9), Knight(Colour.BLACK))
+  def kings_exist(self):
+    return self._red_king != None and self._black_king != None and self._red_king.coord != None and self._black_king.coord != None
 
   def is_check(self, colour : Colour, move : Move = None) -> bool:
+    logger.debug(f"is_check({self}, {colour}, {move})")
+
     if move:
       move, _ = self.move(move)
 
-    oppositeColour = colour.opposite()
+    if not self.kings_exist():
+      logger.debug(f"Kings not on board: {self._red_king}, {self._black_king}")
+      if move:
+        self.undo_move(move)
+      return True
 
     king = self._red_king if colour == Colour.RED else self._black_king
+    oppositeColour = colour.opposite()
 
     # Check if the opposite colour's pieces can attack the king
     opponent_pieces = filter(lambda piece : piece.colour == oppositeColour, self.pieces)
     dest_positions = chain.from_iterable(piece.get_moves(self) for piece in opponent_pieces)
 
-    is_check = any(map(lambda move : move.dest == king._coord, dest_positions))
+    is_check = any(map(lambda piece_move : piece_move.dest == king.coord, dest_positions))
 
     if move:
       self.undo_move(move)
@@ -115,11 +176,18 @@ class XiangqiBoard(Board):
     return is_check
 
   def is_checkmate(self, colour : Colour):
+    logger.debug(f"is_checkmate({self}, {colour})")
     return self.is_check(colour) and len(list(self.get_legal_moves(colour))) == 0
 
   def kings_facing(self, move : Move = None) -> bool:
     if move:
       move, _ = self.move(move)
+
+    if not self.kings_exist():
+      logger.debug(f"Kings not on board: {self._red_king}, {self._black_king}")
+      if move:
+        self.undo_move(move)
+      return True
 
     kings_facing = self._red_king.coord.x == self._black_king.coord.x
 
@@ -141,6 +209,7 @@ class XiangqiBoard(Board):
     return self.get_cell(coord).piece or XiangqiPiece("..", Colour.NONE)
 
   def is_legal_move(self, move : Move, colour : Colour):
+    logger.debug(f"is_legal_move({self}, {move}, {colour})")
     return self.is_valid_move(move) and \
       self.get_piece(move.src).colour == colour and \
       self.get_piece(move.dest).colour != colour and \
@@ -148,47 +217,130 @@ class XiangqiBoard(Board):
       not self.kings_facing(move)
 
   def get_legal_moves(self, colour : Colour):
+    logger.debug(f"get_legal_moves({self}, {colour})")
+
+    if not self.kings_exist():
+      logger.debug(f"Kings not on board: {self._red_king}, {self._black_king}")
+      return []
+
     for piece in filter(lambda piece : piece.colour == colour, self.pieces):
+      logger.debug(f"Piece: {piece}")
+      logger.debug(f"Piece moves:")
+      for move in piece.get_moves(self):
+        logger.debug(f"Move: {move}")
+
       yield from filter(lambda move : self.is_legal_move(move, colour), piece.get_moves(self))
 
-if __name__ == "__main__":
+def main():
   board = XiangqiBoard()
   board.setup()
-  print(board)
+  logger.info(board)
 
   red_king_board_move, _ = board.move(Move(Coord(4, 0), Coord(4, 1)))
-  print(board)
+  logger.info(board)
   assert board._red_king.coord == Coord(4, 1), "Red king should be at (4, 1)"
 
   black_king_board_move, _ = board.move(Move(Coord(4, 9), Coord(4, 8)))
-  print(board)
+  logger.info(board)
   assert board._black_king.coord == Coord(4, 8), "Black king should be at (4, 8)"
 
   board.undo_move(black_king_board_move)
-  print(board)
+  logger.info(board)
 
   assert board._black_king.coord == Coord(4, 9), "Black king should be at (4, 9)"
-  assert board.kings_facing(), "Kings should be facing each other"
+  # assert board.kings_facing(), "Kings should be facing each other"
 
   advisor_move, _ = board.move(Move(Coord(3, 9), Coord(4, 8)))
-  print(board)
+  logger.info(board)
 
   advisor_piece = board.get_piece(Coord(4, 8))
   assert type(advisor_piece) == Advisor, "Piece at (4, 8) should be a advisor"
   assert advisor_piece.colour == Colour.BLACK, "Advisor at (4, 8) should be black"
   assert not board.kings_facing(), "Kings should not be facing each other"
 
-  print("Red king moves")
+  logger.info("Red king moves")
   for move in board._red_king.get_moves(board):
-    print(move)
+    logger.info(move)
 
-  print("Red legal moves")
+  logger.info("Red legal moves")
   red_legal_moves = board.get_legal_moves(Colour.RED)
 
   for move in red_legal_moves:
-    print(move)
+    logger.info(move)
 
-  print("Black legal moves")
+  logger.info("Black legal moves")
   black_legal_moves = board.get_legal_moves(Colour.BLACK)
   for move in black_legal_moves:
-    print(move)
+    logger.info(move)
+
+def test():
+  board = XiangqiBoard()
+  piece_coords = {
+    King: {
+      Colour.RED: [
+        (4, 0)
+      ],
+      Colour.BLACK: [
+        (4, 9)
+      ]
+    },
+    Soldier: {
+      Colour.RED: [
+        (4, 7)
+      ],
+      Colour.BLACK: [
+        (4, 1), (0, 4)
+      ]
+    }
+  }
+
+  board.setup(piece_coords)
+  logger.info(board)
+
+  logger.info(f"Red in check: {board.is_check(Colour.RED)}")
+  logger.info(f"Black in check: {board.is_check(Colour.BLACK)}")
+
+  logger.info("Red legal moves")
+  red_legal_moves = board.get_legal_moves(Colour.RED)
+  for move in red_legal_moves:
+    logger.info(move)
+
+  logger.info("Black legal moves")
+  black_legal_moves = board.get_legal_moves(Colour.BLACK)
+  for move in black_legal_moves:
+    logger.info(move)
+
+  board.move(Move(Coord(4, 0), Coord(4, 1)))
+  logger.info(board)
+
+  logger.info(f"Red in check: {board.is_check(Colour.RED)}")
+  logger.info(f"Black in check: {board.is_check(Colour.BLACK)}")
+
+  logger.info("Red legal moves")
+  red_legal_moves = board.get_legal_moves(Colour.RED)
+  for move in red_legal_moves:
+    logger.info(move)
+
+  logger.info("Black legal moves")
+  black_legal_moves = board.get_legal_moves(Colour.BLACK)
+  for move in black_legal_moves:
+    logger.info(move)
+
+  board.move(Move(Coord(4, 7), Coord(4, 8)))
+  logger.info(board)
+
+  logger.info(f"Red in check: {board.is_check(Colour.RED)}")
+  logger.info(f"Black in check: {board.is_check(Colour.BLACK)}")
+
+  logger.info("Red legal moves")
+  red_legal_moves = board.get_legal_moves(Colour.RED)
+  for move in red_legal_moves:
+    logger.info(move)
+
+  logger.info("Black legal moves")
+  black_legal_moves = board.get_legal_moves(Colour.BLACK)
+  for move in black_legal_moves:
+    logger.info(move)
+
+if __name__ == "__main__":
+  main()

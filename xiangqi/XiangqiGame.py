@@ -1,4 +1,6 @@
+import random
 import sys
+import logging
 sys.path.append('..')
 from Game import Game
 
@@ -10,6 +12,8 @@ from .Boardgame import Piece, Move, Coord
 # from Xiangqi import Colour, Rook, Advisor, King, Knight, Elephant, Cannon, Pawn
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 class XiangqiGame(Game):
   def __init__(self, rows, cols):
@@ -64,11 +68,18 @@ class XiangqiGame(Game):
             SOLDIER_MOVES * SOLDIER_COUNT + 1
 
   def getValidMoves(self, board, player):
+    logger.debug(f"getValidMoves({board}, {player})")
     # return a fixed size binary vector
     valids = [0]*self.getActionSize()
     # get all legal moves
     decoded_board = XiangqiBoard.from_encoding(board)
-    legalMoves = list(decoded_board.get_legal_moves(player))
+    legalMoves = list(decoded_board.get_legal_moves(Colour.to_colour(player)))
+
+    logger.info(f"getValidMoves({decoded_board}, {Colour.to_colour(player)})")
+    logger.info(f"Legal Moves:")
+    for move in legalMoves:
+      logger.info(f"{move}")
+
     # if no legal moves, pass
     if len(legalMoves) == 0:
       valids[-1] = 1
@@ -79,36 +90,44 @@ class XiangqiGame(Game):
       move_index = (move.src.x * self.m + move.src.y) * self.n * self.m + (move.dest.x * self.m + move.dest.y)
       valids[move_index] = 1
 
-    return valids
+    logger.debug(f"Valids: {valids}")
+    return np.array(valids)
+
+  def actionToMove(self, action):
+    # Decode action to get source and destination coordinates
+    src_x = (action // (self.n * self.m)) // self.m
+    src_y = (action // (self.n * self.m)) % self.m
+    dest_x = (action % (self.n * self.m)) // self.m
+    dest_y = (action % (self.n * self.m)) % self.m
+    logger.info(f"actionToMove({action}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
+
+    return Move(Coord(int(src_x), int(src_y)), Coord(int(dest_x), int(dest_y)))
 
   def getNextState(self, board, player, action):
     # if player takes action on board, return next (board,player)
     # action must be a valid move
     if action == self.getActionSize() - 1:
       # Pass action
-      return board, -player
+      return (board, -player)
 
     decoded_board = XiangqiBoard.from_encoding(board)
-
-    # Decode action to get source and destination coordinates
-    src_x = (action // (self.n * self.m)) // self.m
-    src_y = (action // (self.n * self.m)) % self.m
-    dest_x = (action % (self.n * self.m)) // self.m
-    dest_y = (action % (self.n * self.m)) % self.m
+    logger.info(f"getNextState({decoded_board}, {Colour.to_colour(player)}, {action})")
 
     # Move the piece
-    move = Move(Coord(src_x, src_y), Coord(dest_x, dest_y))
+    move = self.actionToMove(action)
     decoded_board.move(move)
-
+    logger.info(f"Move: {move}")
+    logger.info(f"Next state: {decoded_board}")
     # Encode the new board state
     new_board = decoded_board.encode()
 
-    return new_board, -player
+    return (new_board, -player)
 
   def getGameEnded(self, board, player):
     # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
     # player = 1
     decoded_board = XiangqiBoard.from_encoding(board)
+    # return random.randint(0, 500) > 100
     if decoded_board.is_checkmate(Colour.to_colour(player)):
       return -1
     elif decoded_board.is_checkmate(Colour.to_colour(player).opposite()):
@@ -125,12 +144,24 @@ class XiangqiGame(Game):
     # +1 for we are red
     # +1 for assistance
     # 3d matrix of size 7x3x2
-    return board
-    if player == Colour.RED:
+    logger.info(f"getCanonicalForm(board, {Colour.to_colour(player)})")
+    if Colour.to_colour(player) == Colour.RED:
+      logger.debug(f"Red player")
+
+      decoded_board = XiangqiBoard.from_encoding(board)
+      logger.info(f"Decoded board: {decoded_board}")
       return board
     else:
+      logger.info(f"Black player. Flipping board...")
+
       decoded_board = XiangqiBoard.from_encoding(board)
       decoded_board.flip()
+
+      logger.info(f"Flipped board: {decoded_board}")
+
+      for piece in decoded_board.pieces:
+        piece.colour = piece.colour.opposite()
+
       return decoded_board.encode()
 
   def getSymmetries(self, board, pi):
@@ -138,8 +169,9 @@ class XiangqiGame(Game):
     return [(board, pi)]
 
   def stringRepresentation(self, board):
+    # return board.tostring()
     decoded_board = XiangqiBoard.from_encoding(board)
-    return decoded_board.__str__()
+    return decoded_board.stringRepresentation()
 
   def getScore(self, board, player):
     pass
@@ -148,39 +180,59 @@ class XiangqiGame(Game):
   def display(board):
     return board.display(board)
 
-if __name__ == "__main__":
+def main():
   game = XiangqiGame(9, 10)
   board = game.getInitBoard()
-  print(board)
+  logger.info(board)
 
   decoded_board = XiangqiBoard.from_encoding(board)
-  print(decoded_board)
+  logger.info(decoded_board)
+  for piece in decoded_board.pieces:
+    piece.display(piece)
 
-  # decoded_board._red_king.display(decoded_board._red_king)
-  # decoded_board._black_king.display(decoded_board._black_king)
+  decoded_board._red_king.display(decoded_board._red_king)
+  decoded_board._black_king.display(decoded_board._black_king)
 
-  print("Red legal moves")
+  logger.info("Red legal moves")
   red_legal_moves = decoded_board.get_legal_moves(Colour.RED)
 
   for move in red_legal_moves:
-    print(move)
+    logger.info(move)
 
-  print("Black legal moves")
+  logger.info("Black legal moves")
   black_legal_moves = decoded_board.get_legal_moves(Colour.BLACK)
   for move in black_legal_moves:
-    print(move)
+    logger.info(move)
+
+  logger.info(game.getBoardSize())
+  logger.info(game.getActionSize())
+  logger.info(game.getValidMoves(board, Colour.RED.value))
+
+  canonical_board = game.getCanonicalForm(board, Colour.RED.value)
+  logger.info(f"Red Canonical_board:\n{XiangqiBoard.from_encoding(canonical_board)}")
+
+  canonical_board = game.getCanonicalForm(board, Colour.BLACK.value)
+  logger.info(f"Black Canonical_board:\n{XiangqiBoard.from_encoding(canonical_board)}")
+
+  red_valid_moves = game.getValidMoves(board, Colour.RED.value)
+  logger.info(red_valid_moves)
+  action = red_valid_moves[np.random.choice(np.where(red_valid_moves == 1)[0])]
+  logger.info(f"Action: {action} | Move: {game.actionToMove(action)}")
+  next_board, next_player = game.getNextState(board, Colour.RED.value, action)
+
+  canonical_board = game.getCanonicalForm(next_board, Colour.RED.value)
+  logger.info(f"Red Canonical_board:\n{XiangqiBoard.from_encoding(canonical_board)}")
+
+  canonical_board = game.getCanonicalForm(next_board, Colour.BLACK.value)
+  logger.info(f"Black Canonical_board:\n{XiangqiBoard.from_encoding(canonical_board)}")
 
 
-  print(game.getBoardSize())
-  print(game.getActionSize())
-  print(game.getValidMoves(board, Colour.RED))
+  # logger.info(canonical_board[3])
+  # logger.info(canonical_board[4])
+  # logger.info(canonical_board[5])
+  # logger.info(canonical_board[4 + 7])
+  # logger.info(canonical_board[5 + 7])
+  # logger.info(f"String representation:\n{game.stringRepresentation(board)}")
 
-  canonical_board = game.getCanonicalForm(board, Colour.RED)
-
-  print(canonical_board)
-  # print(canonical_board[3])
-  # print(canonical_board[4])
-  # print(canonical_board[5])
-  # print(canonical_board[4 + 7])
-  # print(canonical_board[5 + 7])
-  print(game.stringRepresentation(board))
+if __name__ == "__main__":
+  main()

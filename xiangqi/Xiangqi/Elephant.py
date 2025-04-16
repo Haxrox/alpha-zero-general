@@ -8,15 +8,14 @@ class Elephant(XiangqiPiece):
       Coord(2, 2), Coord(2, -2), Coord(-2, 2), Coord(-2, -2)
     ]
 
-    match self.colour:
-      case Colour.RED:
-        self._bounds.append(
-          lambda coord: Coord(0, 0) <= coord <= Coord(9, 4)
-        )
-      case Colour.BLACK:
-        self._bounds.append(
-          lambda coord: Coord(0, 5) <= coord <= Coord(9, 10)
-        )
+    def bound(coord):
+      match self.colour:
+        case Colour.RED:
+          return Coord(0, 0) <= coord <= Coord(9, 4)
+        case Colour.BLACK:
+          return Coord(0, 5) <= coord <= Coord(9, 10)
+
+    self._bounds.append(bound)
 
   def is_valid_board_dest(self, board : Board, dest : Coord):
     # Make sure no pieces are blocking the elephant

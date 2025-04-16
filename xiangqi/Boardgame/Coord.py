@@ -27,9 +27,13 @@ class Coord():
     assert type(self._y) == int, f"y: {self._y} | type(y): {type(self._y)}"
 
   def __eq__(self, other):
+    if not isinstance(other, Coord):
+      return False
     return self.x == other.x and self.y == other.y
 
   def __ne__(self, other):
+    if not isinstance(other, Coord):
+      return True
     return self.x != other.x or self.y != other.y
 
   def __lt__(self, other):

@@ -5,8 +5,12 @@ from .Move import Move
 from .BoardMove import BoardMove
 
 from collections import deque
+import logging
 
 import numpy as np
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class Board():
   def __init__(self, rows : int, cols : int):
@@ -44,6 +48,7 @@ class Board():
     return self.is_valid_coord(move.src) and self.is_valid_coord(move.dest)
 
   def undo_move(self, move : BoardMove):
+    logger.debug(f"undo_move({move})")
     undo_move = Move(move.dest, move.src)
     self.move(undo_move)
 
@@ -75,7 +80,47 @@ class Board():
     dest_cell.piece = src_cell.piece
     src_cell.piece = None
 
+    logger.debug(f"move({move}) {board_move}")
+
+    for piece in self.pieces:
+      logger.debug(f"piece: {piece} | coord: {piece.coord}")
     return board_move, "Move successful"
+
+  def flip(self):
+    # numpy flip matrix
+    # logger.debug(f"Flipping board")
+    # logger.debug(f"Before flip:\n{self}")
+    self.matrix = np.flip(self.matrix, axis=1)
+    # logger.debug(f"After flip:\n{self}")
+
+    # # flip the board
+    # flipped_matrix = [[None for _ in range(self.n)] for _ in range(self.m)]
+    # for x in range(self.n):
+    #   for y in range(self.m):
+    #     flipped_matrix[y][x] = self.matrix[x][y]
+
+    # flip the pieces
+    # for piece in self.pieces:
+      # piece.coord = Coord(piece.coord.x, abs(self.m - piece.coord.y - 1))
+
+    for x in range(self.n):
+      for y in range(self.m):
+        cell = self.matrix[x][y]
+        if cell.piece:
+          cell.piece.coord = Coord(x, y)
+          assert cell.piece.coord == Coord(x, y), f"Cell: {cell} | cell.piece.coord: {cell.piece}"
+
+    # self.matrix = flipped_matrix
+
+  def stringRepresentation(self):
+    # create a string representation of the board
+    board_str = ""
+    for x in range(self.n):
+      for y in range(self.m):
+        piece = self.get_piece(Coord(x, y))
+        board_str += piece.icon + " "
+      board_str += "\n"
+    return board_str
 
   # add [][] indexer syntax to the Board
   def __getitem__(self, index) -> Piece:
@@ -84,7 +129,7 @@ class Board():
   def __str__(self):
     n = self.n
     m = self.m
-    display_str = "   "
+    display_str = "Board:\n   "
     for y in range(m):
         display_str += f"{y}  "
     display_str += "\n"
@@ -95,6 +140,11 @@ class Board():
             piece = self.get_piece(Coord(x, y))    # get the piece to print
             display_str += f"{piece.icon} "
         display_str += "|\n"
+    display_str += "-------------------------------\n"
+
+    display_str += "Pieces:\n"
+    for piece in self.pieces:
+      display_str += f"{piece}\n"
     display_str += "-------------------------------\n"
     return display_str
 

@@ -5,7 +5,7 @@ class Piece():
     self._coord = None
 
   def __str__(self):
-    return self._icon
+    return f"{self._icon} {self.coord}"
 
   @property
   def name(self):
