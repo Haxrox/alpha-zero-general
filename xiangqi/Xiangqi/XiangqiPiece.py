@@ -33,7 +33,10 @@ class XiangqiPiece(Piece):
     return all([bound(dest) for bound in self._bounds])
 
   def is_valid_board_dest(self, board : Board, dest : Coord):
-    return True
+    if board.get_piece(dest).colour == self.colour:
+      return False
+    else:
+      return True
 
   def get_moves(self, board : Board = None):
     logger.debug(f"get_moves({self}) | legal_vectors: {self._legal_vectors} | coord: {self.coord}")

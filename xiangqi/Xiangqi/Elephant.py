@@ -18,6 +18,9 @@ class Elephant(XiangqiPiece):
     self._bounds.append(bound)
 
   def is_valid_board_dest(self, board : Board, dest : Coord):
+    if not super().is_valid_board_dest(board, dest):
+      return False
+
     # Make sure no pieces are blocking the elephant
     delta = dest - self.coord
     blocking_coord = self.coord + Coord(delta.x // 2, delta.y // 2)

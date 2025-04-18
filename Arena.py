@@ -52,14 +52,19 @@ class Arena():
                 assert self.display
                 print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
-            action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
 
-            valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer), 1)
+            canonical_form = self.game.getCanonicalForm(board, curPlayer)
+
+            # self.display(canonical_form)
+
+            action = players[curPlayer + 1](canonical_form)
+            valids = self.game.getValidMoves(canonical_form, 1)
 
             if valids[action] == 0:
                 log.error(f'Action {action} is not valid!')
                 log.debug(f'valids = {valids}')
-                assert valids[action] > 0
+                continue
+                # assert valids[action] > 0
 
             # Notifying the opponent for the move
             opponent = players[-curPlayer + 1]

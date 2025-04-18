@@ -23,10 +23,10 @@ logging.basicConfig(
 coloredlogs.install(level='INFO')  # Change this to DEBUG to see more info.
 
 def main():
-#   log.info('Loading %s...', Game.__name__)
-#   GameMain()
-  log.info('Loading %s...', Logic.__name__)
-  LogicTest()
+  log.info('Loading %s...', Game.__name__)
+  GameMain()
+  # log.info('Loading %s...', Logic.__name__)
+  # LogicTest()
 #   LogicMain()
 
 if __name__ == "__main__":

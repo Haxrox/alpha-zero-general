@@ -5,10 +5,9 @@ sys.path.append('..')
 from Game import Game
 
 from .XiangqiLogic import XiangqiBoard, COLOUR_MAPPING, PLANE_MAPPING
-from .Xiangqi import Colour, Advisor, King, Elephant, Knight
+from .Xiangqi import Colour, Advisor, King, Elephant, Knight, Rook, Cannon, Soldier
 
 from .Boardgame import Piece, Move, Coord
-# Rook, Cannon, Pawn
 # from Xiangqi import Colour, Rook, Advisor, King, Knight, Elephant, Cannon, Pawn
 
 import numpy as np
@@ -87,11 +86,22 @@ class XiangqiGame(Game):
 
     # for each legal move, set the index to 1
     for move in legalMoves:
-      move_index = (move.src.x * self.m + move.src.y) * self.n * self.m + (move.dest.x * self.m + move.dest.y)
+      move_index = self.moveToAction(move)
+      # move_index = (move.src.x * self.m + move.src.y) * self.n * self.m + (move.dest.x * self.m + move.dest.y)
       valids[move_index] = 1
 
     logger.debug(f"Valids: {valids}")
     return np.array(valids)
+
+  def moveToAction(self, move):
+    # Encode move to get source and destination coordinates
+    src_x = move.src.x
+    src_y = move.src.y
+    dest_x = move.dest.x
+    dest_y = move.dest.y
+    logger.debug(f"moveToAction({move}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
+
+    return (src_x * self.m + src_y) * self.n * self.m + (dest_x * self.m + dest_y)
 
   def actionToMove(self, action):
     # Decode action to get source and destination coordinates
@@ -99,7 +109,7 @@ class XiangqiGame(Game):
     src_y = (action // (self.n * self.m)) % self.m
     dest_x = (action % (self.n * self.m)) // self.m
     dest_y = (action % (self.n * self.m)) % self.m
-    logger.info(f"actionToMove({action}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
+    logger.debug(f"actionToMove({action}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
 
     return Move(Coord(int(src_x), int(src_y)), Coord(int(dest_x), int(dest_y)))
 
@@ -118,6 +128,10 @@ class XiangqiGame(Game):
     decoded_board.move(move)
     logger.info(f"Move: {move}")
     logger.info(f"Next state: {decoded_board}")
+
+    decoded_board.flip()
+    logger.info(f"Flipped board: {decoded_board}")
+
     # Encode the new board state
     new_board = decoded_board.encode()
 
@@ -152,12 +166,9 @@ class XiangqiGame(Game):
       logger.info(f"Decoded board: {decoded_board}")
       return board
     else:
-      logger.info(f"Black player. Flipping board...")
+      logger.info(f"Black player. Inverting colours...")
 
       decoded_board = XiangqiBoard.from_encoding(board)
-      decoded_board.flip()
-
-      logger.info(f"Flipped board: {decoded_board}")
 
       for piece in decoded_board.pieces:
         piece.colour = piece.colour.opposite()
@@ -178,7 +189,8 @@ class XiangqiGame(Game):
 
   @staticmethod
   def display(board):
-    return board.display(board)
+    decoded_board = XiangqiBoard.from_encoding(board)
+    return decoded_board.display(decoded_board)
 
 def main():
   game = XiangqiGame(9, 10)
@@ -226,6 +238,30 @@ def main():
   canonical_board = game.getCanonicalForm(next_board, Colour.BLACK.value)
   logger.info(f"Black Canonical_board:\n{XiangqiBoard.from_encoding(canonical_board)}")
 
+  next_decoded_board = XiangqiBoard.from_encoding(next_board)
+  logger.info(f"Next board:\n{next_decoded_board}")
+
+  cannon = next_decoded_board.get_piece(Coord(1, 2))
+  assert cannon is not None
+  assert type(cannon) == Cannon
+  assert cannon.colour == Colour.BLACK # Rotated board
+
+  logger.info(f"{cannon} Moves:")
+  cannon_moves = list(cannon.get_moves(next_decoded_board))
+  for move in cannon_moves:
+    logger.info(move)
+  assert len(cannon_moves) == 12
+
+  rook = next_decoded_board.get_piece(Coord(0, 0))
+  assert rook is not None
+  assert type(rook) == Rook
+  assert rook.colour == Colour.BLACK # Rotated board
+
+  logger.info(f"{rook} Moves:")
+  rook_moves = list(rook.get_moves(next_decoded_board))
+  for move in rook_moves:
+    logger.info(move)
+  assert len(rook_moves) == 2
 
   # logger.info(canonical_board[3])
   # logger.info(canonical_board[4])

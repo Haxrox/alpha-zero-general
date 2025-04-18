@@ -142,12 +142,29 @@ class Board():
         display_str += "|\n"
     display_str += "-------------------------------\n"
 
-    display_str += "Pieces:\n"
-    for piece in self.pieces:
-      display_str += f"{piece}\n"
-    display_str += "-------------------------------\n"
     return display_str
 
   @staticmethod
-  def display(board):
-    print(board)
+  def display(board, verbose=False):
+    n = board.n
+    m = board.m
+    display_str = "Board:\n   "
+    for y in range(m):
+        display_str += f"{y}  "
+    display_str += "\n"
+    display_str += "-------------------------------\n"
+    for y in range(m):
+        display_str += f"{y} |"    # print the row #
+        for x in range(n):
+            piece = board.get_piece(Coord(x, y))    # get the piece to print
+            display_str += f"{piece.icon} "
+        display_str += "|\n"
+    display_str += "-------------------------------\n"
+
+    if verbose:
+      display_str += "Pieces:\n"
+      for piece in board.pieces:
+        display_str += f"{piece}\n"
+      display_str += "-------------------------------\n"
+
+    print(display_str)

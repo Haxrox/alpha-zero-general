@@ -28,6 +28,9 @@ class Soldier(XiangqiPiece):
     self._bounds.append(bound)
 
   def is_valid_board_dest(self, board : Board, dest : Coord):
+    if not super().is_valid_board_dest(board, dest):
+      return False
+
     delta = dest - self.coord
 
     if delta.x != 0:
