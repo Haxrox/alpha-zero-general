@@ -2,6 +2,8 @@ import logging
 import sys
 import coloredlogs
 import torch
+import time
+import os
 
 from Coach import Coach
 from xiangqi.XiangqiGame import XiangqiGame as Game
@@ -19,18 +21,17 @@ args = dotdict({
     'numMCTSSims': 5,          # Number of games moves for MCTS to simulate.
     'arenaCompare': 40,         # Number of games to play during arena play to determine if new net will be accepted.
     'cpuct': 1,
-
     'checkpoint': './temp/',
     'load_model': False,
     'load_folder_file': ('/dev/models/8x100x50','best.pth.tar'),
     'numItersForTrainExamplesHistory': 20,
-    'logfile': "xiangqi_main.log"
+    'logfile': time.strftime(f"logs/{os.path.basename(__file__).replace('.py', '')}-%Y-%m-%d-%H-%M-%S.log", time.localtime()),
 })
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.INFO,
-    filename=args.logfile,
+    level = logging.DEBUG,
+    filename = args.logfile,
     filemode = 'w',
     format='[%(asctime)s][%(levelname)s] %(name)s | %(message)s'
 )

@@ -66,6 +66,14 @@ class NNetWrapper(NeuralNet):
 
                 # compute output
                 out_pi, out_v = self.nnet(boards)
+
+                log.debug("out_pi: %s | out_v: %s", out_pi, out_v)
+                log.debug("target_pis: %s | target_vs: %s", target_pis, target_vs)
+                log.debug("out_pi.size(): %s | out_v.size(): %s", out_pi.size(), out_v.size())
+                log.debug("target_pis.size(): %s | target_vs.size(): %s", target_pis.size(), target_vs.size())
+                log.debug("out_pi.shape: %s | out_v.shape: %s", out_pi.shape, out_v.shape)
+                log.debug("target_pis.shape: %s | target_vs.shape: %s", target_pis.shape, target_vs.shape)
+
                 l_pi = self.loss_pi(target_pis, out_pi)
                 l_v = self.loss_v(target_vs, out_v)
                 total_loss = l_pi + l_v
@@ -99,9 +107,11 @@ class NNetWrapper(NeuralNet):
         return torch.exp(pi).data.cpu().numpy()[0], v.data.cpu().numpy()[0]
 
     def loss_pi(self, targets, outputs):
+        log.debug("loss_pi(%s, %s) | %s | %s", targets, outputs, targets.size(), outputs.size())
         return -torch.sum(targets * outputs) / targets.size()[0]
 
     def loss_v(self, targets, outputs):
+        log.debug("loss_v(%s, %s) | %s | %s", targets, outputs, targets.size(), outputs.size())
         return torch.sum((targets - outputs.view(-1)) ** 2) / targets.size()[0]
 
     def save_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):

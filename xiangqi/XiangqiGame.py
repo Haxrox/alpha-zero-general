@@ -27,13 +27,18 @@ class XiangqiGame(Game):
 
   def getBoardSize(self):
     # (a,b) tuple
-    return (14, self.n, self.m)
+    return (14 * 6, self.n, self.m)
 
   def getActionSize(self):
     # return number of actions
     # All combinations of moves for each piece
     # +1 for pass
-    return self.n * self.m * self.n * self.m + 1
+    D1 = self.n # + 1
+    D2 = self.m # + 1
+    D3 = self.n # + 1
+    D4 = self.m # + 1
+
+    return D1 * D2 * D3 * D4 + 1
     # Rooks: self.n + self.m moves (self.n vertical squares, self.m horizontal squares)
     # Knights: 8 moves
     # Elephants: 4 moves
@@ -95,21 +100,37 @@ class XiangqiGame(Game):
 
   def moveToAction(self, move):
     # Encode move to get source and destination coordinates
+    # https://stackoverflow.com/questions/29142417/4d-position-from-1d-index
+    D1 = self.n # + 1
+    D2 = self.m # + 1
+    D3 = self.n # + 1
+    D4 = self.m # + 1
+
     src_x = move.src.x
     src_y = move.src.y
     dest_x = move.dest.x
     dest_y = move.dest.y
-    logger.debug(f"moveToAction({move}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
+    action = src_x + src_y * D1 + dest_x * D1 * D2 + dest_y * D1 * D2 * D3
 
-    return (src_x * self.m + src_y) * self.n * self.m + (dest_x * self.m + dest_y)
+    logger.debug(f"moveToAction({move}) -> {action}")
+    # print(f"moveToAction({move}) -> {action}")
+
+    return action
 
   def actionToMove(self, action):
     # Decode action to get source and destination coordinates
-    src_x = (action // (self.n * self.m)) // self.m
-    src_y = (action // (self.n * self.m)) % self.m
-    dest_x = (action % (self.n * self.m)) // self.m
-    dest_y = (action % (self.n * self.m)) % self.m
+    # https://stackoverflow.com/questions/29142417/4d-position-from-1d-index
+    D1 = self.n # + 1
+    D2 = self.m # + 1
+    D3 = self.n # + 1
+    D4 = self.m # + 1
+
+    src_x = action % D1
+    src_y = ((action - src_x) // D1) % D2
+    dest_x = ((action - src_y * D1 - src_x) // (D1 * D2)) % D3
+    dest_y = ((action - dest_x * D1 * D2 - src_y * D1 - src_x) // (D1 * D2 * D3)) % D4
     logger.debug(f"actionToMove({action}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
+    # print(f"actionToMove({action}) -> src: ({src_x}, {src_y}), dest: ({dest_x}, {dest_y})")
 
     return Move(Coord(int(src_x), int(src_y)), Coord(int(dest_x), int(dest_y)))
 
@@ -125,7 +146,8 @@ class XiangqiGame(Game):
 
     # Move the piece
     move = self.actionToMove(action)
-    decoded_board.move(move)
+    board_move, _ = decoded_board.move(move)
+    decoded_board.add_history(board_move)
     logger.info(f"Move: {move}")
     logger.info(f"Next state: {decoded_board}")
 
@@ -138,6 +160,7 @@ class XiangqiGame(Game):
     return (new_board, -player)
 
   def getGameEnded(self, board, player):
+    logger.info(f"getGameEnded({board}, {player})")
     # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
     # player = 1
     decoded_board = XiangqiBoard.from_encoding(board)
@@ -170,6 +193,8 @@ class XiangqiGame(Game):
 
       decoded_board = XiangqiBoard.from_encoding(board)
 
+      # decoded_board.flip()
+
       for piece in decoded_board.pieces:
         piece.colour = piece.colour.opposite()
 
@@ -189,32 +214,65 @@ class XiangqiGame(Game):
 
   @staticmethod
   def display(board):
-    decoded_board = XiangqiBoard.from_encoding(board)
-    return decoded_board.display(decoded_board)
+    logger.debug(f"display({board})")
+
+    return XiangqiBoard.display_encoding(board)
 
 def main():
   game = XiangqiGame(9, 10)
   board = game.getInitBoard()
-  logger.info(board)
+  logger.info(game.display(board))
 
   decoded_board = XiangqiBoard.from_encoding(board)
   logger.info(decoded_board)
   for piece in decoded_board.pieces:
     piece.display(piece)
 
+  assert len(decoded_board.pieces) == 32, f"Pieces: {len(decoded_board.pieces)}"
+
+  logger.info("Kings:")
   decoded_board._red_king.display(decoded_board._red_king)
   decoded_board._black_king.display(decoded_board._black_king)
 
+  logger.info("Red pieces:")
+  red_pieces = list(filter(lambda piece: piece.colour == Colour.RED, decoded_board.pieces))
+  for piece in red_pieces:
+    logger.info(piece.display(piece))
+
+  assert len(red_pieces) == 16, f"Red pieces: {len(red_pieces)}"
+
   logger.info("Red legal moves")
-  red_legal_moves = decoded_board.get_legal_moves(Colour.RED)
+  red_legal_moves = list(decoded_board.get_legal_moves(Colour.RED))
 
   for move in red_legal_moves:
     logger.info(move)
 
+  # Rook moves: 2
+  # Knight moves: 2
+  # Elephant moves: 2
+  # Advisor moves: 1
+  # General moves: 1
+  # Cannon moves: 12
+  # Soldier moves: 1
+  assert len(red_legal_moves) == 2 * 2 + 2 * 2 + 2 * 2 + 1 * 2 + 1 * 1 + 12 * 2 + 1 * 5, f"Red legal moves: {len(red_legal_moves)}"
+
+  logger.info("Black pieces:")
+  black_pieces = list(filter(lambda piece: piece.colour == Colour.BLACK, decoded_board.pieces))
+  for piece in black_pieces:
+    logger.info(piece.display(piece))
+
+  assert len(black_pieces) == 16, f"Black pieces: {len(black_pieces)}"
+
   logger.info("Black legal moves")
-  black_legal_moves = decoded_board.get_legal_moves(Colour.BLACK)
+  black_legal_moves = list(decoded_board.get_legal_moves(Colour.BLACK))
   for move in black_legal_moves:
     logger.info(move)
+
+  assert len(black_legal_moves) == 2 * 2 + 2 * 2 + 2 * 2 + 1 * 2 + 1 * 1 + 12 * 2 + 1 * 5, f"Black legal moves: {len(black_legal_moves)}"
+
+  logger.info("Pieces:")
+  for piece in decoded_board.pieces:
+    logger.info(piece.display(piece))
 
   logger.info(game.getBoardSize())
   logger.info(game.getActionSize())

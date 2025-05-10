@@ -187,3 +187,4 @@ checkpoints/
 # For PyCharm users
 .idea/
 
+logs

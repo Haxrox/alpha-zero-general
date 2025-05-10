@@ -1,8 +1,9 @@
-from .Boardgame import Board, Coord, Move
+from .Boardgame import Board, Coord, Move, BoardMove
 from .Xiangqi import Colour, XiangqiPiece, King, Advisor, Elephant, Knight, Rook, Cannon, Soldier
 
 from itertools import chain
 from functools import partial
+from collections import deque
 import logging
 
 import numpy as np
@@ -87,50 +88,113 @@ class XiangqiBoard(Board):
   def __init__(self, rows : int = 9, cols : int = 10):
     super().__init__(rows, cols)
 
-    self.planes = 14
+    self.planes = 14 * 6
     self._red_king = None
     self._black_king = None
 
   @classmethod
   def from_encoding(cls, encoding : np.ndarray):
     plane_count, rows, cols = encoding.shape
+    # print(f"Encoding: {encoding}")
+    logger.debug(f"from_encoding({XiangqiBoard.display_encoding(encoding)})")
     instance = cls(rows, cols)
 
-    for plane_num in range(0, plane_count):
-      plane = encoding[plane_num]
-      if plane_num < 7:
-        colour = Colour.RED
-      else:
-        colour = Colour.BLACK
-        plane_num -= 7
+    # for plane_num in range(0, 14):
+    # for plane_num in range(14 * 6 - 1, 14, -1):
+    #   plane_encoding = plane_num % 14
+    #   plane = encoding[plane_encoding]
+    #   if plane_encoding < 7:
+    #     colour = Colour.RED
+    #   else:
+    #     colour = Colour.BLACK
+    #     plane_encoding -= 7
 
-      try:
-        piece_cls = next(filter(lambda piece : PLANE_MAPPING[piece] == plane_num, PLANE_MAPPING))
+    #   try:
+    #     piece_cls = next(filter(lambda piece : PLANE_MAPPING[piece] == plane_encoding, PLANE_MAPPING))
 
-        # get coords of piece
-        for x, y in zip(*plane.nonzero()):
-          piece = piece_cls(colour)
+    #     # get coords of piece
+    #     for x, y in zip(*plane.nonzero()):
+    #       piece = piece_cls(colour)
+    #       instance.add_piece(Coord(int(x), int(y)), piece)
 
-          if piece_cls == King:
-            if colour == Colour.RED:
-              instance._red_king = piece
-            else:
-              instance._black_king = piece
+    #   except StopIteration:
+    #     # print(f"Could not find piece for plane {plane_num}")
+    #     logger.error(f"Could not find piece for plane {plane_num}")
 
-          instance.add_piece(Coord(int(x), int(y)), piece)
-      except StopIteration:
-        print(f"Could not find piece for plane {plane_num}")
+
+    for i in range(1, 6):
+      logger.info(f"current_state: {plane_count - 14 * i} | {plane_count - 14 * (i - 1)}")
+      logger.info(f"prev_state: {plane_count - 14 * (i + 1)} | {plane_count - 14 * i}")
+      current_state = encoding[plane_count - 14 * (i + 1): plane_count - 14 * i]
+      prev_state = encoding[plane_count - 14 * i: plane_count - 14 * (i - 1)]
+
+      diff = prev_state ^ current_state
+      logger.info(f"Diff: {XiangqiBoard.display_encoding(diff)}")
+      logger.info(f"Diff: {diff.nonzero()}")
+      # print(f"Diff: {diff}")
+      # get coords of piece
+      src = None
+      dest = None
+
+      for plane, x, y in zip(*diff.nonzero()):
+        logger.info(f"Plane: {plane} | x: {x} | y: {y}")
+        plane_encoding = plane % 14
+
+        if plane_encoding < 7:
+          colour = Colour.RED
+        else:
+          colour = Colour.BLACK
+          plane_encoding %= 7
+
+        if current_state[plane][x][y] == 1:
+          src = Coord(int(x), int(y))
+
+          if not instance.has_piece(src):
+            try:
+              piece_cls = next(filter(lambda piece : PLANE_MAPPING[piece] == plane_encoding, PLANE_MAPPING))
+              piece = piece_cls(colour)
+              instance.add_piece(src, piece)
+            except StopIteration:
+              logger.error(f"Could not find piece for plane {plane_encoding}")
+              continue
+
+        elif prev_state[plane][x][y] == 1:
+          dest = Coord(int(x), int(y))
+
+      if not src or not dest:
+        # print(f"Could not find src or dest for i {i} | src: {src} | dest: {dest}")
+        logger.error(f"Could not find src or dest for i {i} | src: {src} | dest: {dest}")
+        continue
+
+      # board_move, _ = instance.move(Move(src, dest))
+      # logger.info(f"Move: {board_move}")
+      instance.add_history(BoardMove(Move(src, dest), None))
 
     return instance
+
+  @classmethod
+  def display_encoding(cls, encoding : np.ndarray):
+    display_str = ""
+    for i in range(0, len(encoding), 14):
+      planes = encoding[i : i + 14]
+      flattened = np.logical_xor.reduce(planes)
+      display_str += f"State {i}:\n{flattened.reshape(*flattened.shape)}\n"
+
+    return display_str
 
   def encode(self) -> np.ndarray:
     encoded_board = np.zeros((self.planes, self.n, self.m))
 
-    for piece in self.pieces:
-      colour_plane = COLOUR_MAPPING[piece.colour]
-      piece_plane = PLANE_MAPPING[type(piece)]
+    for i in range(0, min(6, len(self.moves) + 1)):
+      for piece in self.pieces:
+        colour_plane = COLOUR_MAPPING[piece.colour]
+        piece_plane = PLANE_MAPPING[type(piece)]
 
-      encoded_board[piece_plane + colour_plane][piece.coord.x][piece.coord.y] = 1
+        encoded_board[piece_plane + colour_plane + 14 * i][piece.coord.x][piece.coord.y] = 1
+
+      if len(self.moves) > 0:
+        last_move = self.moves.pop()
+        self.undo_move(last_move)
 
     return encoded_board.astype(bool)
 
@@ -140,11 +204,6 @@ class XiangqiBoard(Board):
         for coord in coords:
           piece = piece_cls(colour)
           self.add_piece(Coord(*coord), piece)
-          if piece_cls == King:
-            if colour == Colour.RED:
-              self._red_king = piece
-            else:
-              self._black_king = piece
 
   def kings_exist(self):
     return self._red_king != None and self._black_king != None and self._red_king.coord != None and self._black_king.coord != None
@@ -166,13 +225,12 @@ class XiangqiBoard(Board):
 
     # Check if the opposite colour's pieces can attack the king
     opponent_pieces = filter(lambda piece : piece.colour == oppositeColour, self.pieces)
-    dest_positions = chain.from_iterable(piece.get_moves(self) for piece in opponent_pieces)
 
-    is_check = any(map(lambda piece_move : piece_move.dest == king.coord, dest_positions))
-
+    is_check = any(map(lambda piece : piece.is_legal_move(self, king.coord), opponent_pieces))
     if move:
       self.undo_move(move)
 
+    logger.debug(f"is_check({colour}, {move}) -> {is_check}")
     return is_check
 
   def is_checkmate(self, colour : Colour):
@@ -205,27 +263,86 @@ class XiangqiBoard(Board):
 
     return kings_facing
 
-  def get_piece(self, coord : Coord):
+  def get_piece(self, coord : Coord) -> XiangqiPiece:
     return self.get_cell(coord).piece or XiangqiPiece("..", Colour.NONE)
 
-  def is_legal_move(self, move : Move, colour : Colour):
+  def add_piece(self, coord : Coord, piece : XiangqiPiece):
+    super().add_piece(coord, piece)
+
+    if type(piece) == King:
+      if piece.colour == Colour.RED:
+        if self._red_king:
+          logger.error(f"Red king already exists: {self._red_king}")
+        self._red_king = piece
+      else:
+        if self._black_king:
+          logger.error(f"Black king already exists: {self._black_king}")
+        self._black_king = piece
+
+  def threefold_repetition(self, move : Move) -> bool:
+    logger.debug(f"threefold_repetition({self}, {move})")
+
+    # Parse the previous board states
+    # and check if the current board state has been seen before
+    if (len(self.moves) < 6):
+      logger.debug(f"Not enough moves to check for threefold repetition")
+      return False
+
+    prev_moves = deque()
+
+    for move in self.moves:
+      print(move)
+
+    compare_move = move
+    opponent_move = self.moves.pop()
+
+    prev_moves.append(opponent_move)
+
+    for i in range(0, 2):
+      prev_move = self.moves.pop()
+      prev_opponent_move = self.moves.pop()
+
+      prev_moves.append(prev_move)
+      prev_moves.append(prev_opponent_move)
+
+      if compare_move.opposite() != prev_move.move or opponent_move.move.opposite() != prev_opponent_move.move:
+        return False
+
+      compare_move = prev_move.move
+      opponent_move = prev_opponent_move
+
+    for prev_move in prev_moves:
+      self.moves.append(prev_move)
+
+    return True
+
+  def is_legal_move(self, move : Move, colour : Colour) -> bool:
     logger.debug(f"is_legal_move({self}, {move}, {colour})")
     return self.is_valid_move(move) and \
       self.get_piece(move.src).colour == colour and \
       self.get_piece(move.dest).colour != colour and \
       not self.is_check(colour, move) and \
       not self.kings_facing(move)
+    # and \
+      # not self.threefold_repetition(move)
 
   def get_legal_moves(self, colour : Colour):
-    logger.debug(f"get_legal_moves({self}, {colour})")
+    logger.info(f"get_legal_moves({colour}, {self})")
 
     if not self.kings_exist():
       logger.debug(f"Kings not on board: {self._red_king}, {self._black_king}")
       return []
 
+    logger.debug("Pieces:")
+    for piece in self.pieces:
+      logger.debug(piece.display(piece))
+
+    logger.debug("Filtered:")
     for piece in filter(lambda piece : piece.colour == colour, self.pieces):
-      logger.debug(f"Piece: {piece}")
-      logger.debug(f"Piece moves:")
+      logger.debug(piece.display(piece))
+
+    for piece in filter(lambda piece : piece.colour == colour, self.pieces):
+      logger.debug(f"{piece} moves:")
       for move in piece.get_moves(self):
         logger.debug(f"Move: {move}")
 

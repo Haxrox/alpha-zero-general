@@ -25,4 +25,4 @@ class Piece():
 
   @staticmethod
   def display(piece):
-    print(f"{piece} {piece.coord}")
+    return f"{piece}"

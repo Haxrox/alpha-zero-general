@@ -1,5 +1,10 @@
+import logging
+
 from .XiangqiPiece import XiangqiPiece, Colour
 from ..Boardgame import Coord, Board
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class Soldier(XiangqiPiece):
   def __init__(self, colour : Colour = Colour.NONE):
@@ -28,6 +33,7 @@ class Soldier(XiangqiPiece):
     self._bounds.append(bound)
 
   def is_valid_board_dest(self, board : Board, dest : Coord):
+    # logger.debug(f"is_valid_board_dest({self}, {dest})")
     if not super().is_valid_board_dest(board, dest):
       return False
 

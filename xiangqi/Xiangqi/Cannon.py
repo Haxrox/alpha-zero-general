@@ -1,9 +1,11 @@
 from itertools import zip_longest
 import math
+import logging
 
 from .XiangqiPiece import XiangqiPiece, Colour
 from ..Boardgame import Coord, Board
 
+logger = logging.getLogger(__name__)
 class Cannon(XiangqiPiece):
   def __init__(self, colour, Colour = Colour.NONE):
     super().__init__("Cannon", colour)
@@ -19,6 +21,7 @@ class Cannon(XiangqiPiece):
     ]
 
   def is_valid_board_dest(self, board : Board, dest : Coord):
+    # logger.debug(f"is_valid_board_dest({self}, {dest})")
     if not super().is_valid_board_dest(board, dest):
       return False
     # Make sure no pieces are blocking the Cannon's valid moves

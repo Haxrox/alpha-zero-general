@@ -1,4 +1,6 @@
 import logging
+import time
+import os
 
 import Arena
 from MCTS import MCTS
@@ -11,8 +13,8 @@ import numpy as np
 from utils import *
 
 logging.basicConfig(
-    level=logging.INFO,
-    filename=__file__.replace(".py", ".log"),
+    level = logging.DEBUG,
+    filename = time.strftime(f"logs/{os.path.basename(__file__).replace('.py', '')}-%Y-%m-%d-%H-%M-%S.log", time.localtime()),
     filemode = 'a',
     format='[%(asctime)s][%(levelname)s] %(name)s | %(message)s'
 )
@@ -36,6 +38,7 @@ g = XiangqiGame(9, 10)
 rp = RandomPlayer(g).play
 # gp = GreedyOthelloPlayer(g).play
 hp = HumanXiangqiPlayer(g).play
+hp2 = HumanXiangqiPlayer(g).play
 
 
 
@@ -61,6 +64,7 @@ else:
     # player2 = n2p  # Player 2 is neural network if it's cpu vs cpu.
     pass
 
-arena = Arena.Arena(rp, player2, g, display=XiangqiGame.display)
+# arena = Arena.Arena(rp, player2, g, display=XiangqiGame.display)
+arena = Arena.Arena(hp2, player2, g, display=XiangqiGame.display)
 
 print(arena.playGames(2, verbose=True))

@@ -48,9 +48,9 @@ class Board():
     return self.is_valid_coord(move.src) and self.is_valid_coord(move.dest)
 
   def undo_move(self, move : BoardMove):
-    logger.debug(f"undo_move({move})")
-    undo_move = Move(move.dest, move.src)
-    self.move(undo_move)
+    # logger.debug(f"undo_move({move})")
+    undo_move = move.opposite()
+    self.move(undo_move.move)
 
     if move.dest_piece:
       self.add_piece(move.dest, move.dest_piece)
@@ -75,16 +75,20 @@ class Board():
       dest_cell.piece.coord = None
 
     board_move = BoardMove(move, dest_cell.piece)
-    self.moves.append(board_move)
+    # self.moves.append(board_move)
 
     dest_cell.piece = src_cell.piece
     src_cell.piece = None
 
     logger.debug(f"move({move}) {board_move}")
 
-    for piece in self.pieces:
-      logger.debug(f"piece: {piece} | coord: {piece.coord}")
+    # for piece in self.pieces:
+    #   logger.debug(f"piece: {piece} | coord: {piece.coord}")
     return board_move, "Move successful"
+
+  def add_history(self, move : BoardMove):
+    logger.info(f"add_history({move})")
+    self.moves.append(move)
 
   def flip(self):
     # numpy flip matrix
@@ -146,6 +150,7 @@ class Board():
 
   @staticmethod
   def display(board, verbose=False):
+    logger.debug(f"display({board})")
     n = board.n
     m = board.m
     display_str = "Board:\n   "
@@ -168,3 +173,4 @@ class Board():
       display_str += "-------------------------------\n"
 
     print(display_str)
+    return display_str

@@ -5,6 +5,9 @@ class Move():
     self.src = src_pos
     self.dest = dest_pos
 
+  def opposite(self):
+    return Move(self.dest, self.src)
+
   def __getitem__(self, key):
     return self[key]
 
