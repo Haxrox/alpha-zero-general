@@ -48,14 +48,15 @@ class Board():
     return self.is_valid_coord(move.src) and self.is_valid_coord(move.dest)
 
   def undo_move(self, move : BoardMove):
-    # logger.debug(f"undo_move({move})")
+    logger.debug(f"undo_move({move})")
     undo_move = move.opposite()
-    self.move(undo_move.move)
+    self.move(undo_move)
 
     if move.dest_piece:
       self.add_piece(move.dest, move.dest_piece)
 
   def move(self, move : Move) -> (BoardMove, str):
+    logger.debug(f"move({move})")
     if not self.is_valid_move(move):
       return None, "Invalid move"
 
@@ -71,6 +72,7 @@ class Board():
     src_cell.piece.coord = move.dest
 
     if dest_cell.piece:
+      logger.debug(f"dest_cell.piece: {dest_cell.piece} | dest_cell: {dest_cell}")
       self.pieces.remove(dest_cell.piece)
       dest_cell.piece.coord = None
 

@@ -27,7 +27,7 @@ class XiangqiGame(Game):
 
   def getBoardSize(self):
     # (a,b) tuple
-    return (14 * 6, self.n, self.m)
+    return (XiangqiBoard.PLANES, self.n, self.m)
 
   def getActionSize(self):
     # return number of actions
@@ -39,40 +39,9 @@ class XiangqiGame(Game):
     D4 = self.m # + 1
 
     return D1 * D2 * D3 * D4 + 1
-    # Rooks: self.n + self.m moves (self.n vertical squares, self.m horizontal squares)
-    # Knights: 8 moves
-    # Elephants: 4 moves
-    # Advisors: 4 moves
-    # General: 4 moves
-    # Cannons: self.n + self.m moves (same as rook)
-    # Soldiers: 3 moves (forward, left, right)
-
-    ROOK_MOVES = self.n + self.m
-    ROOK_COUNT = 2
-    KNIGHT_MOVES = 8
-    KNIGHT_COUNT = 2
-    ELEPHANT_MOVES = 4
-    ELEPHANT_COUNT = 2
-    ADVISOR_MOVES = 4
-    ADVISOR_COUNT = 2
-    GENERAL_MOVES = 4
-    GENERAL_COUNT = 1
-    CANNON_MOVES = self.n + self.m
-    CANNON_COUNT = 2
-    SOLDIER_MOVES = 3
-    SOLDIER_COUNT = 5
-
-    # +1 for number of legal moves
-    return  ROOK_MOVES * ROOK_COUNT + \
-            KNIGHT_MOVES * KNIGHT_COUNT + \
-            ELEPHANT_MOVES * ELEPHANT_COUNT + \
-            ADVISOR_MOVES * ADVISOR_COUNT + \
-            GENERAL_MOVES * GENERAL_COUNT + \
-            CANNON_MOVES * CANNON_COUNT + \
-            SOLDIER_MOVES * SOLDIER_COUNT + 1
 
   def getValidMoves(self, board, player):
-    logger.debug(f"getValidMoves({board}, {player})")
+    logger.debug(f"getValidMoves({XiangqiBoard.display_encoding(board)}, {player})")
     # return a fixed size binary vector
     valids = [0]*self.getActionSize()
     # get all legal moves
@@ -151,16 +120,19 @@ class XiangqiGame(Game):
     logger.info(f"Move: {move}")
     logger.info(f"Next state: {decoded_board}")
 
-    decoded_board.flip()
-    logger.info(f"Flipped board: {decoded_board}")
+    # decoded_board.flip()
+    # logger.info(f"Flipped board: {decoded_board}")
 
     # Encode the new board state
-    new_board = decoded_board.encode()
+    encoded_board = decoded_board.encode()
+    new_board = XiangqiBoard.flip_encoding(encoded_board)
+
+    logger.info(f"New board: {XiangqiBoard.display_encoding(new_board)}")
 
     return (new_board, -player)
 
   def getGameEnded(self, board, player):
-    logger.info(f"getGameEnded({board}, {player})")
+    logger.info(f"getGameEnded({XiangqiBoard.display_encoding(board)}, {player})")
     # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
     # player = 1
     decoded_board = XiangqiBoard.from_encoding(board)
@@ -181,7 +153,7 @@ class XiangqiGame(Game):
     # +1 for we are red
     # +1 for assistance
     # 3d matrix of size 7x3x2
-    logger.info(f"getCanonicalForm(board, {Colour.to_colour(player)})")
+    logger.info(f"getCanonicalForm({XiangqiBoard.display_encoding(board)}, {Colour.to_colour(player)})")
     if Colour.to_colour(player) == Colour.RED:
       logger.debug(f"Red player")
 
@@ -197,6 +169,8 @@ class XiangqiGame(Game):
 
       for piece in decoded_board.pieces:
         piece.colour = piece.colour.opposite()
+
+      logger.info(f"Decoded board: {decoded_board}")
 
       return decoded_board.encode()
 
@@ -214,7 +188,8 @@ class XiangqiGame(Game):
 
   @staticmethod
   def display(board):
-    logger.debug(f"display({board})")
+    decoded_board = XiangqiBoard.from_encoding(board)
+    print(decoded_board)
 
     return XiangqiBoard.display_encoding(board)
 
@@ -284,9 +259,36 @@ def main():
   canonical_board = game.getCanonicalForm(board, Colour.BLACK.value)
   logger.info(f"Black Canonical_board:\n{XiangqiBoard.from_encoding(canonical_board)}")
 
+  cannon = decoded_board.get_piece(Coord(1, 2))
+  assert cannon is not None
+  assert type(cannon) == Cannon
+  assert cannon.colour == Colour.RED # Rotated board
+
+  logger.info(f"{cannon} Moves:")
+  cannon_moves = list(cannon.get_moves(decoded_board))
+  for move in cannon_moves:
+    logger.info(move)
+  assert len(cannon_moves) == 12
+
+  rook = decoded_board.get_piece(Coord(0, 0))
+  assert rook is not None
+  assert type(rook) == Rook
+  assert rook.colour == Colour.RED # Rotated board
+
+  logger.info(f"{rook} Moves:")
+  rook_moves = list(rook.get_moves(decoded_board))
+  for move in rook_moves:
+    logger.info(move)
+  assert len(rook_moves) == 2
+
   red_valid_moves = game.getValidMoves(board, Colour.RED.value)
   logger.info(red_valid_moves)
-  action = red_valid_moves[np.random.choice(np.where(red_valid_moves == 1)[0])]
+
+  assert type(red_valid_moves) == np.ndarray, f"Red valid moves: {type(red_valid_moves)}"
+
+  assert (red_valid_moves == 1).sum() == 2 * 2 + 2 * 2 + 2 * 2 + 1 * 2 + 1 * 1 + 12 * 2 + 1 * 5, f"Red valid moves: {(red_valid_moves == 1).sum()}"
+
+  action = np.random.choice(np.where(red_valid_moves == 1)[0])
   logger.info(f"Action: {action} | Move: {game.actionToMove(action)}")
   next_board, next_player = game.getNextState(board, Colour.RED.value, action)
 
@@ -298,28 +300,6 @@ def main():
 
   next_decoded_board = XiangqiBoard.from_encoding(next_board)
   logger.info(f"Next board:\n{next_decoded_board}")
-
-  cannon = next_decoded_board.get_piece(Coord(1, 2))
-  assert cannon is not None
-  assert type(cannon) == Cannon
-  assert cannon.colour == Colour.BLACK # Rotated board
-
-  logger.info(f"{cannon} Moves:")
-  cannon_moves = list(cannon.get_moves(next_decoded_board))
-  for move in cannon_moves:
-    logger.info(move)
-  assert len(cannon_moves) == 12
-
-  rook = next_decoded_board.get_piece(Coord(0, 0))
-  assert rook is not None
-  assert type(rook) == Rook
-  assert rook.colour == Colour.BLACK # Rotated board
-
-  logger.info(f"{rook} Moves:")
-  rook_moves = list(rook.get_moves(next_decoded_board))
-  for move in rook_moves:
-    logger.info(move)
-  assert len(rook_moves) == 2
 
   # logger.info(canonical_board[3])
   # logger.info(canonical_board[4])

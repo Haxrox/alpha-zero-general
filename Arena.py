@@ -51,11 +51,11 @@ class Arena():
             if verbose:
                 assert self.display
                 print("Turn ", str(it), "Player ", str(curPlayer))
-                # self.display(board)
+                self.display(board)
 
             canonical_form = self.game.getCanonicalForm(board, curPlayer)
 
-            self.display(canonical_form)
+            # self.display(canonical_form)
 
             action = players[curPlayer + 1](canonical_form)
             valids = self.game.getValidMoves(canonical_form, 1)
