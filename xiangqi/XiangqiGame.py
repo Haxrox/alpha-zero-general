@@ -41,14 +41,14 @@ class XiangqiGame(Game):
     return D1 * D2 * D3 * D4 + 1
 
   def getValidMoves(self, board, player):
-    logger.debug(f"getValidMoves({XiangqiBoard.display_encoding(board)}, {player})")
+    logger.debug(f"getValidMoves({player}, {XiangqiBoard.display_encoding(board)})")
     # return a fixed size binary vector
     valids = [0]*self.getActionSize()
     # get all legal moves
     decoded_board = XiangqiBoard.from_encoding(board)
     legalMoves = list(decoded_board.get_legal_moves(Colour.to_colour(player)))
 
-    logger.info(f"getValidMoves({decoded_board}, {Colour.to_colour(player)})")
+    logger.info(f"getValidMoves({Colour.to_colour(player)}, {decoded_board})")
     logger.info(f"Legal Moves:")
     for move in legalMoves:
       logger.info(f"{move}")
@@ -110,8 +110,9 @@ class XiangqiGame(Game):
       # Pass action
       return (board, -player)
 
+    logger.debug(f"getNextState({action}, {Colour.to_colour(player)}, {XiangqiBoard.display_encoding(board)})")
     decoded_board = XiangqiBoard.from_encoding(board)
-    logger.info(f"getNextState({decoded_board}, {Colour.to_colour(player)}, {action})")
+    logger.info(f"getNextState({action}, {Colour.to_colour(player)}, {decoded_board})")
 
     # Move the piece
     move = self.actionToMove(action)
@@ -127,15 +128,16 @@ class XiangqiGame(Game):
     encoded_board = decoded_board.encode()
     new_board = XiangqiBoard.flip_encoding(encoded_board)
 
-    logger.info(f"New board: {XiangqiBoard.display_encoding(new_board)}")
+    logger.debug(f"New board: {XiangqiBoard.display_encoding(new_board)}")
 
     return (new_board, -player)
 
   def getGameEnded(self, board, player):
-    logger.info(f"getGameEnded({XiangqiBoard.display_encoding(board)}, {player})")
+    logger.debug(f"getGameEnded({XiangqiBoard.display_encoding(board)}, {player})")
     # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
     # player = 1
     decoded_board = XiangqiBoard.from_encoding(board)
+    logger.info(f"getGameEnded({player}, {decoded_board})")
     # return random.randint(0, 500) > 100
     if decoded_board.is_checkmate(Colour.to_colour(player)):
       return -1
@@ -153,7 +155,7 @@ class XiangqiGame(Game):
     # +1 for we are red
     # +1 for assistance
     # 3d matrix of size 7x3x2
-    logger.info(f"getCanonicalForm({XiangqiBoard.display_encoding(board)}, {Colour.to_colour(player)})")
+    logger.debug(f"getCanonicalForm({XiangqiBoard.display_encoding(board)}, {Colour.to_colour(player)})")
     if Colour.to_colour(player) == Colour.RED:
       logger.debug(f"Red player")
 
@@ -161,7 +163,7 @@ class XiangqiGame(Game):
       logger.info(f"Decoded board: {decoded_board}")
       return board
     else:
-      logger.info(f"Black player. Inverting colours...")
+      logger.debug(f"Black player. Inverting colours...")
 
       decoded_board = XiangqiBoard.from_encoding(board)
 
@@ -170,7 +172,7 @@ class XiangqiGame(Game):
       for piece in decoded_board.pieces:
         piece.colour = piece.colour.opposite()
 
-      logger.info(f"Decoded board: {decoded_board}")
+      logger.debug(f"Decoded board: {decoded_board}")
 
       return decoded_board.encode()
 

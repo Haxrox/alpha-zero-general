@@ -89,7 +89,7 @@ class Board():
     return board_move, "Move successful"
 
   def add_history(self, move : BoardMove):
-    logger.info(f"add_history({move})")
+    logger.debug(f"add_history({move})")
     self.moves.append(move)
 
   def flip(self):

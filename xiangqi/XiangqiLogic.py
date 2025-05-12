@@ -109,14 +109,14 @@ class XiangqiBoard(Board):
       plane = encoding[i - 14: i]
 
       if len(plane.nonzero()[0]) == 0:
-        logger.info(f"Plane {i} is empty")
+        logger.debug(f"Plane {i} is empty")
         continue
 
-      logger.info(f"Initial state {i}")
+      logger.debug(f"Initial state {i}")
       first_nonzero_plane = i
 
       for plane, x, y in zip(*plane.nonzero()):
-        logger.info(f"Plane: {plane} | x: {x} | y: {y}")
+        logger.debug(f"Plane: {plane} | x: {x} | y: {y}")
         plane_encoding = plane % 14
         if plane_encoding < 7:
           colour = Colour.RED
@@ -131,14 +131,14 @@ class XiangqiBoard(Board):
             piece_cls = next(filter(lambda piece : PLANE_MAPPING[piece] == plane_encoding, PLANE_MAPPING))
             piece = piece_cls(colour)
             instance.add_piece(dest, piece)
-            logger.info(f"Adding piece at {dest}: {piece}")
+            logger.debug(f"Adding piece at {dest}: {piece}")
           except StopIteration:
             logger.error(f"Could not find piece for plane {plane_encoding}")
             continue
 
       break
 
-    logger.info(f"Initial: {instance}")
+    logger.debug(f"Initial: {instance}")
 
     for i in range(1, instance.history_planes + 1):
       current_state = encoding[plane_count - 14 * (i + 1): plane_count - 14 * i]
@@ -148,19 +148,19 @@ class XiangqiBoard(Board):
 
       nonzero = diff.nonzero()
 
-      logger.info(f"Prev {i}: {XiangqiBoard.display_encoding(prev_state)}")
-      logger.info(f"Current {i}: {XiangqiBoard.display_encoding(current_state)}")
-      logger.info(f"Diff {i}: {XiangqiBoard.display_encoding(diff)}")
-      logger.info(f"Diff {i}: {nonzero}")
+      logger.debug(f"Prev {i}: {XiangqiBoard.display_encoding(prev_state)}")
+      logger.debug(f"Current {i}: {XiangqiBoard.display_encoding(current_state)}")
+      logger.debug(f"Diff {i}: {XiangqiBoard.display_encoding(diff)}")
+      logger.debug(f"Diff {i}: {nonzero}")
 
       if len(nonzero[0]) == 0:
-        logger.info(f"No pieces moved in state {i}")
+        logger.debug(f"No pieces moved in state {i}")
         continue
       elif len(nonzero[0]) == 1:
-        logger.info(f"Only one piece moved in state {i}")
+        logger.debug(f"Only one piece moved in state {i}")
         continue
       elif len(nonzero[0]) == 2:
-        logger.info(f"Only 1 piece moved in state {i}")
+        logger.debug(f"Only 1 piece moved in state {i}")
         # 1 piece moved
         plane = nonzero[0][0]
         plane_encoding = plane % 14
@@ -186,10 +186,10 @@ class XiangqiBoard(Board):
 
         board_move, state = instance.move(Move(src, dest))
         instance.add_history(board_move)
-        logger.info(f"Move: {board_move} | {state}")
+        logger.debug(f"Move: {board_move} | {state}")
 
       elif len(nonzero[0]) == 3:
-        logger.info(f"1 piece moved and 1 piece was eaten in state {i}")
+        logger.debug(f"1 piece moved and 1 piece was eaten in state {i}")
         counts = {}
 
         for plane, x, y in zip(*nonzero):
@@ -205,13 +205,13 @@ class XiangqiBoard(Board):
 
         board_move, state = instance.move(Move(src, dest))
         instance.add_history(board_move)
-        logger.info(f"Move: {board_move} | {state}")
+        logger.debug(f"Move: {board_move} | {state}")
 
-      logger.info(f"Current: {instance}")
-      logger.info(f"len(instance.moves): {len(instance.moves)}")
+      logger.debug(f"Current: {instance}")
+      logger.debug(f"len(instance.moves): {len(instance.moves)}")
 
       for move in instance.moves:
-        logger.info(f"Move: {move}")
+        logger.debug(f"Move: {move}")
 
     return instance
 
